@@ -8,9 +8,9 @@
 
 ---
 
-## 🎥 Vídeo de Apresentação    
+## Vídeo de Apresentação    
  
-➡️ Assista à demonstração completa do aplicativo no YouTube: [Apresentação Mottu Control](https://youtu.be/YBeacDZA1FY)
+Demonstração completa do aplicativo no YouTube: [Apresentação Mottu Control](https://youtu.be/YBeacDZA1FY)
 
 ---
 
