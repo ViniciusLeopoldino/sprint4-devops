@@ -1,0 +1,150 @@
+trigger:
+- master
+
+variables:
+  javaVersion: '17'
+  mavenArtifactName: 'mottu-control-*.jar'
+  dockerfile: '**/Dockerfile'
+  artifactName: 'drop'
+  imageRepository: 'mottu-control'
+  resourceGroup: $(RESOURCE_GROUP)
+  location: $(LOCATION)
+  postgresContainerName: $(POSTGRES_CONTAINER_NAME)
+  appContainerName: $(APP_CONTAINER_NAME)
+  dnsLabelApp: 'app-mottu-fiap'
+  dnsLabelDb: 'db-mottu-fiap'
+  dockerRegistryServiceConnection: $(DOCKER_REGISTRY_SERVICE_CONNECTION)
+  azureSubscriptionServiceConnection: $(AZURE_SERVICE_CONNECTION)
+  postgresPassword: $(POSTGRES_PASSWORD)
+  postgresUser: $(POSTGRES_USER)
+  postgresDb: $(POSTGRES_DB)
+
+stages:
+- stage: Build
+  displayName: 'CI - Build, Test & Publish Artifact'
+  jobs:
+  - job: BuildAndTest
+    displayName: 'Build, Test and Publish'
+    pool:
+      vmImage: 'ubuntu-latest'
+
+    steps:
+    - task: JavaToolInstaller@0
+      inputs:
+        versionSpec: $(javaVersion)
+        jdkArchitecture: 'x64'
+        jdkSourceOption: 'PreInstalled'
+
+    - task: Maven@4
+      displayName: 'Maven Package & Test'
+      inputs:
+        mavenPomFile: 'pom.xml'
+        goals: 'package'
+        options: '-DskipTests=false'
+        publishJUnitTestResults: true
+        testResultsFiles: '**/surefire-reports/TEST-*.xml'
+
+    - task: CopyFiles@2
+      displayName: 'Copy JAR to Artifact Staging'
+      inputs:
+        SourceFolder: '$(System.DefaultWorkingDirectory)/target'
+        Contents: $(mavenArtifactName)
+        TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+    - task: CopyFiles@2
+      displayName: 'Copy Dockerfile to Artifact Staging'
+      inputs:
+        SourceFolder: '$(System.DefaultWorkingDirectory)'
+        Contents: $(dockerfile)
+        TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish Artifact'
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: $(artifactName)
+        publishLocation: 'Container'
+
+- stage: Deploy
+  displayName: 'CD - Deploy to Azure'
+  dependsOn: Build
+  condition: succeeded()
+
+  jobs:
+  - job: DeployToACI
+    displayName: 'Deploy to ACI'
+    pool:
+      vmImage: 'ubuntu-latest'
+
+    steps:
+    - task: DownloadBuildArtifacts@1
+      displayName: 'Download Artifact'
+      inputs:
+        buildType: 'current'
+        downloadType: 'single'
+        artifactName: $(artifactName)
+        downloadPath: '$(System.ArtifactsDirectory)'
+
+    - task: Docker@2
+      displayName: 'Login to ACR'
+      inputs:
+        command: 'login'
+        containerRegistry: $(dockerRegistryServiceConnection)
+
+    - task: Docker@2
+      displayName: 'Build Docker Image'
+      inputs:
+        command: 'build'
+        repository: $(imageRepository)
+        tag: '$(Build.BuildId)'
+        dockerfile: '$(System.ArtifactsDirectory)/$(artifactName)/Dockerfile'
+        buildContext: '$(System.ArtifactsDirectory)/$(artifactName)'
+
+    - task: Docker@2
+      displayName: 'Push Image to ACR'
+      inputs:
+        command: 'push'
+        repository: $(imageRepository)
+        containerRegistry: $(dockerRegistryServiceConnection)
+        tags: |
+          $(Build.BuildId)
+          latest
+
+    - task: AzureCLI@2
+      displayName: 'Deploy to Azure (DB & App)'
+      inputs:
+        azureSubscription: $(azureSubscriptionServiceConnection)
+        scriptType: 'pscore'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          az container create `
+            --resource-group $(resourceGroup) `
+            --name $(postgresContainerName) `
+            --image postgres:15 `
+            --os-type Linux `
+            --ports 5432 `
+            --cpu 1 `
+            --memory 1.5 `
+            --environment-variables "POSTGRES_DB=$(postgresDb)" "POSTGRES_USER=$(postgresUser)" "POSTGRES_PASSWORD=$(postgresPassword)" `
+            --dns-name-label $(dnsLabelDb) `
+            --location $(location)
+
+          Start-Sleep -Seconds 60
+
+          $POSTGRES_IP = $(az container show --resource-group $(resourceGroup) --name $(postgresContainerName) --query ipAddress.ip --output tsv)
+          echo "IP do DB: $POSTGRES_IP"
+
+          az container create `
+            --resource-group $(resourceGroup) `
+            --name $(appContainerName) `
+            --image $(az acr show --name $(DOCKER_REGISTRY_NAME) --query loginServer -o tsv)/$(imageRepository):$(Build.BuildId) `
+            --os-type Linux `
+            --ports 8080 `
+            --cpu 1 `
+            --memory 1.5 `
+            --registry-login-server $(az acr show --name $(DOCKER_REGISTRY_NAME) --query loginServer -o tsv) `
+            --registry-username $(DOCKER_REGISTRY_USERNAME) `
+            --registry-password $(DOCKER_REGISTRY_PASSWORD) `
+            --environment-variables "DB_URL=jdbc:postgresql://$POSTGRES_IP:5432/$(postgresDb)" "DB_USER=$(postgresUser)" "DB_PASSWORD=$(postgresPassword)" `
+            --dns-name-label $(dnsLabelApp) `
+            --location $(location)
