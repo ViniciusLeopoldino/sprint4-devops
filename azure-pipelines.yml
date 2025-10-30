@@ -90,13 +90,11 @@ stages:
     - task: Docker@2
       displayName: 'Build Docker Image'
       inputs:
-        command: 'build'
-        repository: $(imageRepository)
+        command: build
+        dockerfile: 'sprint4-devops/Dockerfile'
+        buildContext: 'sprint4-devops'
         tags: |
           $(Build.BuildId)
-          latest
-        dockerfile: '$(System.ArtifactsDirectory)/drop/Dockerfile'
-        buildContext: '$(System.ArtifactsDirectory)/drop'
 
     - task: Docker@2
       displayName: 'Push Image to ACR'
