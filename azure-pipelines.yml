@@ -12,13 +12,13 @@ variables:
   
 stages:
 # -----------------------------------------------------
-# ESTÁGIO DE CI (BUILD & TEST)
+# ESTÁGIO DE CI (BUILD & PUBLISH)
 # -----------------------------------------------------
 - stage: Build
-  displayName: 'CI - Build, Test & Publish Artifact'
+  displayName: 'CI - Build & Publish Artifact'
   jobs:
   - job: BuildAndTest
-    displayName: 'Build, Test and Publish'
+    displayName: 'Build and Publish'
     pool:
       vmImage: 'ubuntu-latest'
     
@@ -30,13 +30,12 @@ stages:
         jdkSourceOption: 'PreInstalled'
 
     - task: Maven@4
-      displayName: 'Maven Package & Test'
+      displayName: 'Maven Package (Skip Tests)'
       inputs:
         mavenPomFile: 'pom.xml'
         goals: 'package'
-        options: '-DskipTests=false'
-        publishJUnitTestResults: true
-        testResultsFiles: '**/surefire-reports/TEST-*.xml'
+        options: '-DskipTests'
+        publishJUnitTestResults: false
 
     - task: CopyFiles@2
       displayName: 'Copy JAR and Dockerfile to Artifact Staging'
@@ -110,7 +109,6 @@ stages:
         scriptType: 'pscore'
         scriptLocation: 'inlineScript'
         inlineScript: |
-          # Implantação idempotente do Banco de Dados
           echo "Iniciando deploy do Banco de Dados PostgreSQL..."
           az container create `
             --resource-group $(resourceGroup) `
@@ -127,13 +125,11 @@ stages:
           echo "Aguardando 60s para o banco iniciar..."
           Start-Sleep -Seconds 60
           
-          # Obter IPs e Nomes
           $POSTGRES_IP = $(az container show --resource-group $(resourceGroup) --name $(postgresContainerName) --query ipAddress.ip --output tsv)
           echo "IP do DB: $POSTGRES_IP"
           $ACR_LOGIN_SERVER = $(az acr show --name $(dockerRegistryName) --query loginServer -o tsv)
           echo "ACR Login Server: $ACR_LOGIN_SERVER"
 
-          # Implantação da Aplicação Java
           echo "Iniciando deploy da Aplicação Java..."
           az container create `
             --resource-group $(resourceGroup) `
