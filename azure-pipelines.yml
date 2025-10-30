@@ -36,7 +36,7 @@ stages:
     - task: Maven@4
       displayName: 'Maven Package (Skip Tests)'
       inputs:
-        mavenPomFile: 'pom.xml'
+        mavenPomFile: '$(Build.SourcesDirectory)/sprint4-devops/pom.xml'
         goals: 'package'
         options: '-DskipTests'
         publishJUnitTestResults: false
@@ -51,8 +51,8 @@ stages:
       displayName: 'Build Docker Image'
       inputs:
         command: build
-        dockerfile: 'sprint4-devops/Dockerfile'
-        buildContext: '$(System.DefaultWorkingDirectory)/sprint4-devops'
+        dockerfile: '$(Build.SourcesDirectory)/sprint4-devops/Dockerfile'
+        buildContext: '$(Build.SourcesDirectory)/sprint4-devops'
         tags: |
           $(Build.BuildId)
 
