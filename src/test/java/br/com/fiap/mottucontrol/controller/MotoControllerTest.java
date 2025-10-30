@@ -16,6 +16,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+// Importação da segurança de teste
 import org.springframework.security.test.context.support.WithMockUser; 
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -41,7 +42,7 @@ public class MotoControllerTest {
     private UserDetailsService userDetailsService; 
 
     @Test
-    @WithMockUser 
+    @WithMockUser // Anotação para simular usuário logado
     public void deveListarMotosComSucesso() throws Exception {
         when(motoRepository.findAll()).thenReturn(Collections.emptyList());
 
@@ -50,7 +51,7 @@ public class MotoControllerTest {
     }
 
     @Test
-    @WithMockUser 
+    @WithMockUser // Anotação para simular usuário logado
     public void deveCriarMotoComSucesso() throws Exception {
         Moto moto = new Moto();
         moto.setModelo("Honda Biz");
