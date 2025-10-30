@@ -1,144 +1,53 @@
+# =======================================================
+# ARQUIVO DE DIAGNÓSTICO TEMPORÁRIO
+# Execute isso e nos mande o log da etapa "Diagnosticar Agente"
+# =======================================================
+
 trigger:
-- "*"
+- "*" # Use qualquer branch que você usa para testar
 
 variables:
+  # Vamos definir isso apenas para ver se ajuda
   projectPath: ''
   javaVersion: '17'
-  mavenArtifactName: 'mottu-control-*.jar'
-  imageRepository: 'mottu-control'
-  dnsLabelApp: 'app-mottu-fiap-557047'
-  dnsLabelDb: 'db-mottu-fiap-557047'
-  resourceGroup: 'rg-mottu-fiap'
-  location: 'brazilsouth'
-  postgresContainerName: 'postgres-db'
-  postgresDb: '$(POSTGRES_DB)'
-  postgresUser: '$(POSTGRES_USER)'
-  appContainerName: 'mottu-app'
-  dockerRegistryName: 'acrmottuRM557047'
-  dockerRegistryUsername: '$(DOCKER_REGISTRY_USERNAME)'
-  dockerRegistryPassword: '$(DOCKER_REGISTRY_PASSWORD)'
 
 stages:
-- stage: Build
-  displayName: 'CI - Build & Docker'
+- stage: Diagnostico
+  displayName: 'Fase de Diagnóstico do Agente'
   jobs:
-  - job: BuildAndDocker
-    displayName: 'Build JAR and Docker Image'
+  - job: DebugJob
+    displayName: 'Diagnosticar Agente'
     pool:
-      vmImage: 'ubuntu-latest'
+      vmImage: 'ubuntu-latest' # Mantenha o que você estava usando!
     
     steps:
     - task: Bash@3
-      displayName: 'Manually Set JAVA_HOME to 17'
+      displayName: 'Rodando Diagnósticos...'
       inputs:
         targetType: 'inline'
         script: |
-          echo "Ajustando manualmente o JAVA_HOME para a versão 17..."
+          echo "===== 1. ONDE ESTOU? ====="
+          pwd
           
-          # Este é o caminho padrão para o JDK 17 fornecido pela Microsoft nos agentes Ubuntu
-          export JAVA_HOME="/usr/lib/jvm/ms-jdk-17-amd64"
+          echo "===== 2. QUEM SOU EU? ====="
+          whoami
           
-          echo "Novo JAVA_HOME: $JAVA_HOME"
+          echo "===== 3. VARIÁVEIS DE AMBIENTE (Filtradas) ====="
+          printenv | sort | grep -E "AGENT_|JAVA_|MVN_|MAVEN_"
           
-          # Define a variável JAVA_HOME para todas as tarefas seguintes neste Job
-          echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME"
+          echo "===== 4. ONDE ESTÃO OS BINÁRIOS? (PATH) ====="
+          echo $PATH
           
-          echo "Verificando a versão do Java..."
-          # Adiciona o Java 17 ao PATH deste script para verificação
-          export PATH=$JAVA_HOME/bin:$PATH
+          echo "===== 5. O JAVA PADRÃO EXISTE? ====="
           java -version
-
-    - task: Maven@4
-      displayName: 'Maven Package and Test'
-      inputs:
-        mavenPomFile: '$(Build.SourcesDirectory)/$(projectPath)pom.xml'
-        goals: 'package'
-        publishJUnitTestResults: true
-        testResultsFiles: '**/surefire-reports/TEST-*.xml'
-
-    - task: PublishBuildArtifacts@1
-      displayName: 'Publish Artifact: Drop'
-      inputs:
-        PathtoPublish: '$(Build.SourcesDirectory)/$(projectPath)target'
-        ArtifactName: 'drop'
-
-    - task: Docker@2
-      displayName: 'Login to ACR'
-      inputs:
-        command: 'login'
-        containerRegistry: 'AcrConnection'
-
-    - task: Docker@2
-      displayName: 'Build Docker Image'
-      inputs:
-        command: build
-        dockerfile: '$(Build.SourcesDirectory)/$(projectPath)Dockerfile'
-        buildContext: '$(Build.SourcesDirectory)/$(projectPath)'
-        tags: |
-          $(Build.BuildId)
-
-    - task: Docker@2
-      displayName: 'Push Image to ACR'
-      inputs:
-        command: 'push'
-        repository: $(imageRepository)
-        containerRegistry: 'AcrConnection'
-        tags: |
-          $(Build.BuildId)
-          latest
-
-- stage: Deploy
-  displayName: 'CD - Deploy to Azure'
-  dependsOn: Build
-  condition: succeeded()
-  
-  jobs:
-  - job: DeployToACI
-    displayName: 'Deploy to ACI'
-    pool:
-      vmImage: 'ubuntu-latest'
-      
-    steps:
-    - task: AzureCLI@2
-      displayName: 'Deploy PostgreSQL & App'
-      inputs:
-        azureSubscription: 'AzureSubscriptionConnection'
-        scriptType: 'bash'
-        scriptLocation: 'inlineScript'
-        inlineScript: |
-          # Deploy do PostgreSQL
-          echo "Criando Container do PostgreSQL..."
-          az container create \
-            --resource-group $(resourceGroup) \
-            --name $(postgresContainerName) \
-            --image postgres:15 \
-            --os-type Linux \
-            --ports 5432 \
-            --cpu 1 \
-            --memory 1.5 \
-            --environment-variables "POSTGRES_DB=$(postgresDb)" "POSTGRES_USER=$(postgresUser)" "POSTGRES_PASSWORD=$(POSTGRES_PASSWORD)" \
-            --dns-name-label $(dnsLabelDb) \
-            --location $(location)
-
-          echo "Aguardando 60 segundos para o PostgreSQL iniciar..."
-          sleep 60
-
-          POSTGRES_IP=$(az container show --resource-group $(resourceGroup) --name $(postgresContainerName) --query ipAddress.ip --output tsv)
-          ACR_LOGIN_SERVER=$(az acr show --name $(dockerRegistryName) --query loginServer -o tsv)
-
-          echo "Criando Container da Aplicação Java..."
-          # Deploy da aplicação Java
-          az container create \
-            --resource-group $(resourceGroup) \
-            --name $(appContainerName) \
-            --image "$ACR_LOGIN_SERVER/$(imageRepository):$(Build.BuildId)" \
-            --os-type Linux \
-            --ports 8080 \
-            --cpu 1 \
-            --memory 1.5 \
-            --registry-login-server $ACR_LOGIN_SERVER \
-            --registry-username $(dockerRegistryUsername) \
-            --registry-password $(dockerRegistryPassword) \
-            --environment-variables "DB_URL=jdbc:postgresql://$POSTGRES_IP:5432/$(postgresDb)" "DB_USER=$(postgresUser)" "DB_PASSWORD=$(POSTGRES_PASSWORD)" \
-            --dns-name-label $(dnsLabelApp) \
-            --location $(location)
+          
+          echo "===== 6. ONDE ESTÃO OS JDKs INSTALADOS? ====="
+          ls -la /usr/lib/jvm/
+          
+          echo "===== 7. O MAVEN PADRÃO EXISTE? ====="
+          mvn -version
+          
+          echo "===== 8. TENTANDO ENCONTRAR O MAVEN... ====="
+          find / -name mvn 2>/dev/null
+          
+          echo "===== DIAGNÓSTICO CONCLUÍDO ====="
