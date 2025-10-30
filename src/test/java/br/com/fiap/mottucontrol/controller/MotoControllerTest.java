@@ -25,12 +25,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import br.com.fiap.mottucontrol.model.Moto;
 import br.com.fiap.mottucontrol.repository.MotoRepository;
 
-@SpringBootTest(excludeAutoConfiguration = { 
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+@EnableAutoConfiguration(exclude = { 
     DataSourceAutoConfiguration.class,
     HibernateJpaAutoConfiguration.class,
     JpaRepositoriesAutoConfiguration.class
 })
-@AutoConfigureMockMvc
 public class MotoControllerTest {
 
     @Autowired
