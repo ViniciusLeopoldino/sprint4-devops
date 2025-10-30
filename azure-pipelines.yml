@@ -29,8 +29,9 @@ stages:
     
     steps:
     - task: JavaToolInstaller@0
+      displayName: 'Install Java $(javaVersion)' # Adicionei um nome para clareza
       inputs:
-        versionSpec: $(javaVersion)
+        versionSpec: $(javaVersion) 
         jdkArchitectureOption: 'x64'
         jdkSourceOption: 'JDKDownloader'
 
