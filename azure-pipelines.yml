@@ -1,5 +1,5 @@
 trigger:
-- master
+- "*"
 
 variables:
   javaVersion: '17'
@@ -89,8 +89,8 @@ stages:
         command: 'build'
         repository: $(imageRepository)
         tag: '$(Build.BuildId)'
-        dockerfile: '$(System.ArtifactsDirectory)/Dockerfile'
-        buildContext: '$(System.ArtifactsDirectory)'
+        dockerfile: '$(System.DefaultWorkingDirectory)/Dockerfile'
+        buildContext: '$(System.DefaultWorkingDirectory)'
 
     - task: Docker@2
       displayName: 'Push Image to ACR'
