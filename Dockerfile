@@ -1,23 +1,23 @@
-# Estágio 1: Build da aplicação com Maven
+# Etapa 1: Build
 FROM maven:3.8.5-openjdk-17 AS build
 WORKDIR /app
 
-# Copia todo o código fonte e o pom.xml
-COPY . .
+# Copia os arquivos necessários para o build
+COPY pom.xml .
+COPY src ./src
 
-# Executa o build do projeto, gerando o arquivo .jar
+# Baixa dependências e compila o projeto
 RUN mvn clean package -DskipTests
 
-# Estágio 2: Criação da imagem final, otimizada e segura
+# Etapa 2: Runtime
 FROM eclipse-temurin:17-jre-focal
 WORKDIR /app
 
-RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
-RUN chown -R appuser:appgroup /app
-USER appuser
+# Copia o .jar gerado do estágio de build
+COPY --from=build /app/target/*.jar app.jar
 
-# Copia o JAR gerado no estágio anterior
-COPY --from=build /app/target/mottu-control-*.jar app.jar
-
+# Expõe a porta padrão do Spring Boot
 EXPOSE 8080
-ENTRYPOINT ["/bin/sh", "-c", "echo 'Aguardando 120 segundos para o banco de dados iniciar...' && sleep 120 && java -jar app.jar"]
+
+# Define o comando de execução
+ENTRYPOINT ["java", "-jar", "app.jar"]
