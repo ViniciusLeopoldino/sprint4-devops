@@ -28,12 +28,11 @@ stages:
       vmImage: 'ubuntu-latest'
     
     steps:
-    - task: JavaToolInstaller@0
-      displayName: 'Install Java $(javaVersion)' # Adicionei um nome para clareza
+    - task: UseJavaVersion@0
+      displayName: 'Set Java Version to $(javaVersion)'
       inputs:
         versionSpec: $(javaVersion) 
-        jdkArchitectureOption: 'x64'
-        jdkSourceOption: 'JDKDownloader'
+        architecture: 'x64'
 
     - task: Maven@4
       displayName: 'Maven Package and Test'
