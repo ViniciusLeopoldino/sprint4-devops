@@ -5,10 +5,8 @@ variables:
   javaVersion: '17'
   mavenArtifactName: 'mottu-control-*.jar'
   imageRepository: 'mottu-control'
-  artifactName: 'drop'
   dnsLabelApp: 'app-mottu-fiap-557047'
   dnsLabelDb: 'db-mottu-fiap-557047'
-  
   resourceGroup: 'rg-mottu-fiap'
   location: 'brazilsouth'
   postgresContainerName: 'postgres-db'
@@ -21,10 +19,10 @@ variables:
 
 stages:
 - stage: Build
-  displayName: 'CI - Build & Publish Artifact'
+  displayName: 'CI - Build & Docker'
   jobs:
-  - job: BuildAndTest
-    displayName: 'Build and Publish'
+  - job: BuildAndDocker
+    displayName: 'Build JAR and Docker Image'
     pool:
       vmImage: 'ubuntu-latest'
     
@@ -43,25 +41,6 @@ stages:
         options: '-DskipTests'
         publishJUnitTestResults: false
 
-    - task: PublishBuildArtifacts@1
-      displayName: 'Publish Artifact'
-      inputs:
-        PathtoPublish: 'target'
-        ArtifactName: $(artifactName)
-        publishLocation: 'Container'
-
-- stage: Deploy
-  displayName: 'CD - Deploy to Azure'
-  dependsOn: Build
-  condition: succeeded()
-  
-  jobs:
-  - job: DeployToACI
-    displayName: 'Deploy to ACI'
-    pool:
-      vmImage: 'ubuntu-latest'
-      
-    steps:
     - task: Docker@2
       displayName: 'Login to ACR'
       inputs:
@@ -72,7 +51,7 @@ stages:
       displayName: 'Build Docker Image'
       inputs:
         command: build
-        dockerfile: '$(System.DefaultWorkingDirectory)/sprint4-devops/Dockerfile'
+        dockerfile: 'sprint4-devops/Dockerfile'
         buildContext: '$(System.DefaultWorkingDirectory)/sprint4-devops'
         tags: |
           $(Build.BuildId)
@@ -87,14 +66,26 @@ stages:
           $(Build.BuildId)
           latest
 
+- stage: Deploy
+  displayName: 'CD - Deploy to Azure'
+  dependsOn: Build
+  condition: succeeded()
+  
+  jobs:
+  - job: DeployToACI
+    displayName: 'Deploy to ACI'
+    pool:
+      vmImage: 'ubuntu-latest'
+      
+    steps:
     - task: AzureCLI@2
-      displayName: 'Deploy to Azure (DB & App)'
+      displayName: 'Deploy PostgreSQL & App'
       inputs:
         azureSubscription: 'AzureSubscriptionConnection'
         scriptType: 'pscore'
         scriptLocation: 'inlineScript'
         inlineScript: |
-          echo "Iniciando deploy do Banco de Dados PostgreSQL..."
+          # Deploy do PostgreSQL
           az container create `
             --resource-group $(resourceGroup) `
             --name $(postgresContainerName) `
@@ -107,15 +98,12 @@ stages:
             --dns-name-label $(dnsLabelDb) `
             --location $(location)
 
-          echo "Aguardando 60s para o banco iniciar..."
           Start-Sleep -Seconds 60
-          
-          $POSTGRES_IP = $(az container show --resource-group $(resourceGroup) --name $(postgresContainerName) --query ipAddress.ip --output tsv)
-          echo "IP do DB: $POSTGRES_IP"
-          $ACR_LOGIN_SERVER = $(az acr show --name $(dockerRegistryName) --query loginServer -o tsv)
-          echo "ACR Login Server: $ACR_LOGIN_SERVER"
 
-          echo "Iniciando deploy da Aplicação Java..."
+          $POSTGRES_IP = $(az container show --resource-group $(resourceGroup) --name $(postgresContainerName) --query ipAddress.ip --output tsv)
+          $ACR_LOGIN_SERVER = $(az acr show --name $(dockerRegistryName) --query loginServer -o tsv)
+
+          # Deploy da aplicação Java
           az container create `
             --resource-group $(resourceGroup) `
             --name $(appContainerName) `
