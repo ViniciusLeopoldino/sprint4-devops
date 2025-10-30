@@ -17,6 +17,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
+import org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -24,7 +25,13 @@ import br.com.fiap.mottucontrol.controller.MotoController;
 import br.com.fiap.mottucontrol.model.Moto;
 import br.com.fiap.mottucontrol.repository.MotoRepository;
 
-@WebMvcTest(value = MotoController.class, excludeAutoConfiguration = {SecurityAutoConfiguration.class})
+@WebMvcTest(
+    value = MotoController.class, 
+    excludeAutoConfiguration = {
+        SecurityAutoConfiguration.class,
+        SecurityFilterAutoConfiguration.class 
+    }
+)
 public class MotoControllerTest {
 
     @Autowired
