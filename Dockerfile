@@ -1,4 +1,3 @@
-# Dockerfile para rodar JAR pronto
 FROM eclipse-temurin:17-jre-focal
 WORKDIR /app
 

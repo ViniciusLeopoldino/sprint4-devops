@@ -2,6 +2,7 @@ trigger:
 - "*"
 
 variables:
+  projectPath: 'sprint4-devops'   # <<-- altere apenas se mover/renomear a pasta
   javaVersion: '17'
   mavenArtifactName: 'mottu-control-*.jar'
   imageRepository: 'mottu-control'
@@ -36,7 +37,7 @@ stages:
     - task: Maven@4
       displayName: 'Maven Package (Skip Tests)'
       inputs:
-        mavenPomFile: '$(Build.SourcesDirectory)/sprint4-devops/pom.xml'
+        mavenPomFile: '$(Build.SourcesDirectory)/$(projectPath)/pom.xml'
         goals: 'package'
         options: '-DskipTests'
         publishJUnitTestResults: false
@@ -51,8 +52,8 @@ stages:
       displayName: 'Build Docker Image'
       inputs:
         command: build
-        dockerfile: '$(Build.SourcesDirectory)/sprint4-devops/Dockerfile'
-        buildContext: '$(Build.SourcesDirectory)/sprint4-devops'
+        dockerfile: '$(Build.SourcesDirectory)/$(projectPath)/Dockerfile'
+        buildContext: '$(Build.SourcesDirectory)/$(projectPath)'
         tags: |
           $(Build.BuildId)
 
