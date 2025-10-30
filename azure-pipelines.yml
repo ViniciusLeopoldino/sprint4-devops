@@ -28,11 +28,6 @@ stages:
       vmImage: 'ubuntu-latest'
     
     steps:
-    # =================================================================
-    # BLOCO DE BUILD CORRIGIDO
-    # Substituímos as tarefas 'JavaToolInstaller' e 'Maven@4'
-    # por um script manual, já que o agente possui o Maven.
-    # =================================================================
     - task: Bash@3
       displayName: 'Run Maven Package and Test (Manual)'
       inputs:
@@ -45,21 +40,15 @@ stages:
           mvn -version
           
           echo "Executando 'mvn package'..."
-          # Usamos as variáveis do pipeline para encontrar o pom.xml
           mvn -f "$(Build.SourcesDirectory)/$(projectPath)pom.xml" package
 
     - task: PublishTestResults@2
       displayName: 'Publish Test Results'
-      condition: succeededOrFailed() # Publica mesmo se os testes falharem
+      condition: succeededOrFailed()
       inputs:
         testResultsFormat: 'JUnit'
         testResultsFiles: '**/surefire-reports/TEST-*.xml'
         
-    # =================================================================
-    # FIM DO BLOCO DE BUILD CORRIGIDO
-    # O restante do arquivo continua normalmente.
-    # =================================================================
-
     - task: PublishBuildArtifacts@1
       displayName: 'Publish Artifact: Drop'
       inputs:
@@ -72,14 +61,26 @@ stages:
         command: 'login'
         containerRegistry: 'AcrConnection'
 
+    # =================================================================
+    # CORREÇÃO DA PIPELINE (AJUSTE NO BUILD DO DOCKER)
+    # =================================================================
     - task: Docker@2
       displayName: 'Build Docker Image'
       inputs:
         command: build
         dockerfile: '$(Build.SourcesDirectory)/$(projectPath)Dockerfile'
         buildContext: '$(Build.SourcesDirectory)/$(projectPath)'
+        # === ADICIONADO ===
+        # Precisamos dar o nome do repositório aqui
+        repository: $(imageRepository) 
+        # === AJUSTADO ===
+        # As tags criadas no build devem ser as mesmas do push
         tags: |
           $(Build.BuildId)
+          latest
+    # =================================================================
+    # FIM DA CORREÇÃO
+    # =================================================================
 
     - task: Docker@2
       displayName: 'Push Image to ACR'
@@ -120,7 +121,7 @@ stages:
             --ports 5432 \
             --cpu 1 \
             --memory 1.5 \
-            --environment-variables "POSTGRES_DB=$(postgresDb)" "POSTGRES_USER=$(postgresUser)" "POSTGRES_PASSWORD=$(POSTGRES_PASSWORD)" \
+            --environment-variables "POSTGRES_DB=$(postgresDb)" "POSTGRES_USER=$(POSTGRES_USER)" "POSTGRES_PASSWORD=$(POSTGRES_PASSWORD)" \
             --dns-name-label $(dnsLabelDb) \
             --location $(location)
 
