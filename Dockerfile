@@ -2,15 +2,12 @@
 FROM maven:3.8.5-openjdk-17 AS build
 # Define o diretório de trabalho dentro do container
 WORKDIR /app
-# Copia o arquivo de configuração do Maven
-COPY pom.xml .
+# Copia os arquivos do projeto para o diretório de trabalho
+COPY . .
 # Baixa as dependências do projeto
 RUN mvn dependency:go-offline
-# Copia o código-fonte
-COPY src ./src
 # Executa o build do projeto, gerando o arquivo .jar
 RUN mvn package -DskipTests
-
 # Estágio 2: Criação da imagem final, otimizada e segura
 FROM eclipse-temurin:17-jre-focal
 # Define o diretório de trabalho
