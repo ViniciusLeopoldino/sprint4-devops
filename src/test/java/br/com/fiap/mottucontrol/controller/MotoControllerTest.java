@@ -1,4 +1,4 @@
-package br.com.fiap.mottucontrol;
+package br.com.fiap.mottucontrol.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
