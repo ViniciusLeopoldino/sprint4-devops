@@ -25,7 +25,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import br.com.fiap.mottucontrol.model.Moto;
 import br.com.fiap.mottucontrol.repository.MotoRepository;
 
-@SpringBootTest(exclude = {
+@SpringBootTest(excludeAutoConfiguration = { 
     DataSourceAutoConfiguration.class,
     HibernateJpaAutoConfiguration.class,
     JpaRepositoriesAutoConfiguration.class
