@@ -1,5 +1,6 @@
 package br.com.fiap.mottucontrol.controller;
 
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -8,7 +9,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 import java.util.Collections;
-
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
+import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
+import org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -22,8 +25,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import br.com.fiap.mottucontrol.model.Moto;
 import br.com.fiap.mottucontrol.repository.MotoRepository;
 
-@SpringBootTest 
-@AutoConfigureMockMvc 
+@SpringBootTest(exclude = {
+    DataSourceAutoConfiguration.class,
+    HibernateJpaAutoConfiguration.class,
+    JpaRepositoriesAutoConfiguration.class
+})
+@AutoConfigureMockMvc
 public class MotoControllerTest {
 
     @Autowired
