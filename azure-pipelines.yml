@@ -1,53 +1,148 @@
-# =======================================================
-# ARQUIVO DE DIAGNÓSTICO TEMPORÁRIO
-# Execute isso e nos mande o log da etapa "Diagnosticar Agente"
-# =======================================================
-
 trigger:
-- "*" # Use qualquer branch que você usa para testar
+- "*"
 
 variables:
-  # Vamos definir isso apenas para ver se ajuda
   projectPath: ''
   javaVersion: '17'
+  mavenArtifactName: 'mottu-control-*.jar'
+  imageRepository: 'mottu-control'
+  dnsLabelApp: 'app-mottu-fiap-557047'
+  dnsLabelDb: 'db-mottu-fiap-557047'
+  resourceGroup: 'rg-mottu-fiap'
+  location: 'brazilsouth'
+  postgresContainerName: 'postgres-db'
+  postgresDb: '$(POSTGRES_DB)'
+  postgresUser: '$(POSTGRES_USER)'
+  appContainerName: 'mottu-app'
+  dockerRegistryName: 'acrmottuRM557047'
+  dockerRegistryUsername: '$(DOCKER_REGISTRY_USERNAME)'
+  dockerRegistryPassword: '$(DOCKER_REGISTRY_PASSWORD)'
 
 stages:
-- stage: Diagnostico
-  displayName: 'Fase de Diagnóstico do Agente'
+- stage: Build
+  displayName: 'CI - Build & Docker'
   jobs:
-  - job: DebugJob
-    displayName: 'Diagnosticar Agente'
+  - job: BuildAndDocker
+    displayName: 'Build JAR and Docker Image'
     pool:
-      vmImage: 'ubuntu-latest' # Mantenha o que você estava usando!
+      vmImage: 'ubuntu-latest'
     
     steps:
+    # =================================================================
+    # BLOCO DE BUILD CORRIGIDO
+    # Substituímos as tarefas 'JavaToolInstaller' e 'Maven@4'
+    # por um script manual, já que o agente possui o Maven.
+    # =================================================================
     - task: Bash@3
-      displayName: 'Rodando Diagnósticos...'
+      displayName: 'Run Maven Package and Test (Manual)'
       inputs:
         targetType: 'inline'
         script: |
-          echo "===== 1. ONDE ESTOU? ====="
-          pwd
-          
-          echo "===== 2. QUEM SOU EU? ====="
-          whoami
-          
-          echo "===== 3. VARIÁVEIS DE AMBIENTE (Filtradas) ====="
-          printenv | sort | grep -E "AGENT_|JAVA_|MVN_|MAVEN_"
-          
-          echo "===== 4. ONDE ESTÃO OS BINÁRIOS? (PATH) ====="
-          echo $PATH
-          
-          echo "===== 5. O JAVA PADRÃO EXISTE? ====="
+          echo "Verificando 'java -version' (padrão do agente):"
           java -version
           
-          echo "===== 6. ONDE ESTÃO OS JDKs INSTALADOS? ====="
-          ls -la /usr/lib/jvm/
-          
-          echo "===== 7. O MAVEN PADRÃO EXISTE? ====="
+          echo "Verificando 'mvn -version' (padrão do agente):"
           mvn -version
           
-          echo "===== 8. TENTANDO ENCONTRAR O MAVEN... ====="
-          find / -name mvn 2>/dev/null
-          
-          echo "===== DIAGNÓSTICO CONCLUÍDO ====="
+          echo "Executando 'mvn package'..."
+          # Usamos as variáveis do pipeline para encontrar o pom.xml
+          mvn -f "$(Build.SourcesDirectory)/$(projectPath)pom.xml" package
+
+    - task: PublishTestResults@2
+      displayName: 'Publish Test Results'
+      condition: succeededOrFailed() # Publica mesmo se os testes falharem
+      inputs:
+        testResultsFormat: 'JUnit'
+        testResultsFiles: '**/surefire-reports/TEST-*.xml'
+        
+    # =================================================================
+    # FIM DO BLOCO DE BUILD CORRIGIDO
+    # O restante do arquivo continua normalmente.
+    # =================================================================
+
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish Artifact: Drop'
+      inputs:
+        PathtoPublish: '$(Build.SourcesDirectory)/$(projectPath)target'
+        ArtifactName: 'drop'
+
+    - task: Docker@2
+      displayName: 'Login to ACR'
+      inputs:
+        command: 'login'
+        containerRegistry: 'AcrConnection'
+
+    - task: Docker@2
+      displayName: 'Build Docker Image'
+      inputs:
+        command: build
+        dockerfile: '$(Build.SourcesDirectory)/$(projectPath)Dockerfile'
+        buildContext: '$(Build.SourcesDirectory)/$(projectPath)'
+        tags: |
+          $(Build.BuildId)
+
+    - task: Docker@2
+      displayName: 'Push Image to ACR'
+      inputs:
+        command: 'push'
+        repository: $(imageRepository)
+        containerRegistry: 'AcrConnection'
+        tags: |
+          $(Build.BuildId)
+          latest
+
+- stage: Deploy
+  displayName: 'CD - Deploy to Azure'
+  dependsOn: Build
+  condition: succeeded()
+  
+  jobs:
+  - job: DeployToACI
+    displayName: 'Deploy to ACI'
+    pool:
+      vmImage: 'ubuntu-latest'
+      
+    steps:
+    - task: AzureCLI@2
+      displayName: 'Deploy PostgreSQL & App'
+      inputs:
+        azureSubscription: 'AzureSubscriptionConnection'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          # Deploy do PostgreSQL
+          echo "Criando Container do PostgreSQL..."
+          az container create \
+            --resource-group $(resourceGroup) \
+            --name $(postgresContainerName) \
+            --image postgres:15 \
+            --os-type Linux \
+            --ports 5432 \
+            --cpu 1 \
+            --memory 1.5 \
+            --environment-variables "POSTGRES_DB=$(postgresDb)" "POSTGRES_USER=$(postgresUser)" "POSTGRES_PASSWORD=$(POSTGRES_PASSWORD)" \
+            --dns-name-label $(dnsLabelDb) \
+            --location $(location)
+
+          echo "Aguardando 60 segundos para o PostgreSQL iniciar..."
+          sleep 60
+
+          POSTGRES_IP=$(az container show --resource-group $(resourceGroup) --name $(postgresContainerName) --query ipAddress.ip --output tsv)
+          ACR_LOGIN_SERVER=$(az acr show --name $(dockerRegistryName) --query loginServer -o tsv)
+
+          echo "Criando Container da Aplicação Java..."
+          # Deploy da aplicação Java
+          az container create \
+            --resource-group $(resourceGroup) \
+            --name $(appContainerName) \
+            --image "$ACR_LOGIN_SERVER/$(imageRepository):$(Build.BuildId)" \
+            --os-type Linux \
+            --ports 8080 \
+            --cpu 1 \
+            --memory 1.5 \
+            --registry-login-server $ACR_LOGIN_SERVER \
+            --registry-username $(dockerRegistryUsername) \
+            --registry-password $(dockerRegistryPassword) \
+            --environment-variables "DB_URL=jdbc:postgresql://$POSTGRES_IP:5432/$(postgresDb)" "DB_USER=$(postgresUser)" "DB_PASSWORD=$(POSTGRES_PASSWORD)" \
+            --dns-name-label $(dnsLabelApp) \
+            --location $(location)
