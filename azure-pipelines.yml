@@ -88,7 +88,9 @@ stages:
       inputs:
         command: 'build'
         repository: $(imageRepository)
-        tag: '$(Build.BuildId)'
+        tags: |
+          $(Build.BuildId)
+          latest
         dockerfile: '$(System.DefaultWorkingDirectory)/Dockerfile'
         buildContext: '$(System.DefaultWorkingDirectory)'
 
