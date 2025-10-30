@@ -7,6 +7,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
+// ======================================================
+// ===== IMPORTAÇÃO NECESSÁRIA PARA O CSRF =====
+// ======================================================
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+// ======================================================
+
 import java.util.Collections;
 
 import org.junit.jupiter.api.Test;
@@ -62,7 +68,12 @@ public class MotoControllerTest {
 
         mockMvc.perform(post("/api/motos")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(moto)))
+                .content(objectMapper.writeValueAsString(moto))
+                // ======================================================
+                // ===== CORREÇÃO: ADICIONA O TOKEN CSRF FALSO =====
+                // ======================================================
+                .with(csrf()) 
+               )
                .andExpect(status().isCreated())
                .andExpect(jsonPath("$.placa").value("TEST123"));
     }
