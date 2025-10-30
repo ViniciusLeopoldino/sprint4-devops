@@ -2,7 +2,7 @@ trigger:
 - "*"
 
 variables:
-  projectPath: 'sprint4-devops'   # <<-- altere apenas se mover/renomear a pasta
+  projectPath: 'sprint4-devops'
   javaVersion: '17'
   mavenArtifactName: 'mottu-control-*.jar'
   imageRepository: 'mottu-control'
@@ -35,12 +35,18 @@ stages:
         jdkSourceOption: 'PreInstalled'
 
     - task: Maven@4
-      displayName: 'Maven Package (Skip Tests)'
+      displayName: 'Maven Package and Test'
       inputs:
         mavenPomFile: '$(Build.SourcesDirectory)/$(projectPath)/pom.xml'
         goals: 'package'
-        options: '-DskipTests'
-        publishJUnitTestResults: false
+        publishJUnitTestResults: true
+        testResultsFiles: '**/surefire-reports/TEST-*.xml'
+
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish Artifact: Drop'
+      inputs:
+        PathtoPublish: '$(Build.SourcesDirectory)/$(projectPath)/target'
+        ArtifactName: 'drop'
 
     - task: Docker@2
       displayName: 'Login to ACR'
@@ -83,39 +89,42 @@ stages:
       displayName: 'Deploy PostgreSQL & App'
       inputs:
         azureSubscription: 'AzureSubscriptionConnection'
-        scriptType: 'pscore'
+        scriptType: 'bash'
         scriptLocation: 'inlineScript'
         inlineScript: |
           # Deploy do PostgreSQL
-          az container create `
-            --resource-group $(resourceGroup) `
-            --name $(postgresContainerName) `
-            --image postgres:15 `
-            --os-type Linux `
-            --ports 5432 `
-            --cpu 1 `
-            --memory 1.5 `
-            --environment-variables "POSTGRES_DB=$(postgresDb)" "POSTGRES_USER=$(postgresUser)" "POSTGRES_PASSWORD=$(POSTGRES_PASSWORD)" `
-            --dns-name-label $(dnsLabelDb) `
+          echo "Criando Container do PostgreSQL..."
+          az container create \
+            --resource-group $(resourceGroup) \
+            --name $(postgresContainerName) \
+            --image postgres:15 \
+            --os-type Linux \
+            --ports 5432 \
+            --cpu 1 \
+            --memory 1.5 \
+            --environment-variables "POSTGRES_DB=$(postgresDb)" "POSTGRES_USER=$(postgresUser)" "POSTGRES_PASSWORD=$(POSTGRES_PASSWORD)" \
+            --dns-name-label $(dnsLabelDb) \
             --location $(location)
 
-          Start-Sleep -Seconds 60
+          echo "Aguardando 60 segundos para o PostgreSQL iniciar..."
+          sleep 60
 
-          $POSTGRES_IP = $(az container show --resource-group $(resourceGroup) --name $(postgresContainerName) --query ipAddress.ip --output tsv)
-          $ACR_LOGIN_SERVER = $(az acr show --name $(dockerRegistryName) --query loginServer -o tsv)
+          POSTGRES_IP=$(az container show --resource-group $(resourceGroup) --name $(postgresContainerName) --query ipAddress.ip --output tsv)
+          ACR_LOGIN_SERVER=$(az acr show --name $(dockerRegistryName) --query loginServer -o tsv)
 
+          echo "Criando Container da Aplicação Java..."
           # Deploy da aplicação Java
-          az container create `
-            --resource-group $(resourceGroup) `
-            --name $(appContainerName) `
-            --image "$ACR_LOGIN_SERVER/$(imageRepository):$(Build.BuildId)" `
-            --os-type Linux `
-            --ports 8080 `
-            --cpu 1 `
-            --memory 1.5 `
-            --registry-login-server $ACR_LOGIN_SERVER `
-            --registry-username $(dockerRegistryUsername) `
-            --registry-password $(dockerRegistryPassword) `
-            --environment-variables "DB_URL=jdbc:postgresql://$POSTGRES_IP:5432/$(postgresDb)" "DB_USER=$(postgresUser)" "DB_PASSWORD=$(POSTGRES_PASSWORD)" `
-            --dns-name-label $(dnsLabelApp) `
+          az container create \
+            --resource-group $(resourceGroup) \
+            --name $(appContainerName) \
+            --image "$ACR_LOGIN_SERVER/$(imageRepository):$(Build.BuildId)" \
+            --os-type Linux \
+            --ports 8080 \
+            --cpu 1 \
+            --memory 1.5 \
+            --registry-login-server $ACR_LOGIN_SERVER \
+            --registry-username $(dockerRegistryUsername) \
+            --registry-password $(dockerRegistryPassword) \
+            --environment-variables "DB_URL=jdbc:postgresql://$POSTGRES_IP:5432/$(postgresDb)" "DB_USER=$(postgresUser)" "DB_PASSWORD=$(POSTGRES_PASSWORD)" \
+            --dns-name-label $(dnsLabelApp) \
             --location $(location)
