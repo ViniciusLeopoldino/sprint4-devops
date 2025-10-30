@@ -1,6 +1,6 @@
 trigger:
 - master
-
+ 
 variables:
   javaVersion: '17'
   mavenArtifactName: 'mottu-control-*.jar'
