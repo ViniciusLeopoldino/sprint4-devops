@@ -32,7 +32,7 @@ stages:
       inputs:
         versionSpec: $(javaVersion)
         jdkArchitectureOption: 'x64'
-        jdkSourceOption: 'PreInstalled'
+        jdkSourceOption: 'JDKDownloader'
 
     - task: Maven@4
       displayName: 'Maven Package and Test'
