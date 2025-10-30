@@ -2,7 +2,7 @@ trigger:
 - "*"
 
 variables:
-  projectPath: 'sprint4-devops-main'
+  projectPath: ''
   javaVersion: '17'
   mavenArtifactName: 'mottu-control-*.jar'
   imageRepository: 'mottu-control'
@@ -37,7 +37,7 @@ stages:
     - task: Maven@4
       displayName: 'Maven Package and Test'
       inputs:
-        mavenPomFile: '$(Build.SourcesDirectory)/$(projectPath)/pom.xml'
+        mavenPomFile: '$(Build.SourcesDirectory)/$(projectPath)pom.xml'
         goals: 'package'
         publishJUnitTestResults: true
         testResultsFiles: '**/surefire-reports/TEST-*.xml'
@@ -45,7 +45,7 @@ stages:
     - task: PublishBuildArtifacts@1
       displayName: 'Publish Artifact: Drop'
       inputs:
-        PathtoPublish: '$(Build.SourcesDirectory)/$(projectPath)/target'
+        PathtoPublish: '$(Build.SourcesDirectory)/$(projectPath)target'
         ArtifactName: 'drop'
 
     - task: Docker@2
@@ -58,7 +58,7 @@ stages:
       displayName: 'Build Docker Image'
       inputs:
         command: build
-        dockerfile: '$(Build.SourcesDirectory)/$(projectPath)/Dockerfile'
+        dockerfile: '$(Build.SourcesDirectory)/$(projectPath)Dockerfile'
         buildContext: '$(Build.SourcesDirectory)/$(projectPath)'
         tags: |
           $(Build.BuildId)
