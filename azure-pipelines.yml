@@ -2,7 +2,7 @@ trigger:
 - "*"
 
 variables:
-  projectPath: 'sprint4-devops'
+  projectPath: 'sprint4-devops-main'
   javaVersion: '17'
   mavenArtifactName: 'mottu-control-*.jar'
   imageRepository: 'mottu-control'
