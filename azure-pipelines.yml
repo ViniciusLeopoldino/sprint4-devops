@@ -4,7 +4,6 @@ trigger:
 variables:
   javaVersion: '17'
   mavenArtifactName: 'mottu-control-*.jar'
-  dockerfile: '**/Dockerfile'
   imageRepository: 'mottu-control'
   artifactName: 'drop'
   dnsLabelApp: 'app-mottu-fiap-557047'
@@ -47,12 +46,12 @@ stages:
     - task: CopyFiles@2
       displayName: 'Copy JAR and Dockerfile to Artifact Staging'
       inputs:
-        SourceFolder: '$(System.DefaultWorkingDirectory)'
+        SourceFolder: '$(System.DefaultWorkingDirectory)/sprint4-devops'
         Contents: |
+          Dockerfile
           target/$(mavenArtifactName)
-          $(dockerfile)
         TargetFolder: '$(Build.ArtifactStagingDirectory)'
-        FlattenFolders: true
+        FlattenFolders: false
 
     - task: PublishBuildArtifacts@1
       displayName: 'Publish Artifact'
@@ -91,8 +90,8 @@ stages:
       displayName: 'Build Docker Image'
       inputs:
         command: build
-        dockerfile: 'sprint4-devops/Dockerfile'
-        buildContext: 'sprint4-devops'
+        dockerfile: '$(System.ArtifactsDirectory)/drop/Dockerfile'
+        buildContext: '$(System.ArtifactsDirectory)/drop'
         tags: |
           $(Build.BuildId)
 
