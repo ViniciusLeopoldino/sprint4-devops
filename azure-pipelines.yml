@@ -1,23 +1,19 @@
 trigger:
 - master
- 
+
 variables:
   javaVersion: '17'
   mavenArtifactName: 'mottu-control-*.jar'
   dockerfile: '**/Dockerfile'
+  imageRepository: 'mottu-control' 
   artifactName: 'drop'
-  imageRepository: 'mottu-control'
-  resourceGroup: $(RESOURCE_GROUP)
-  location: $(LOCATION)
-  postgresContainerName: $(POSTGRES_CONTAINER_NAME)
-  appContainerName: $(APP_CONTAINER_NAME)
-  dnsLabelApp: 'app-mottu-fiap-557047'
-  dnsLabelDb: 'db-mottu-fiap-557047'
-  postgresPassword: $(POSTGRES_PASSWORD)
-  postgresUser: $(POSTGRES_USER)
-  postgresDb: $(POSTGRES_DB)
-
+  dnsLabelApp: 'app-mottu-fiap-557047' 
+  dnsLabelDb: 'db-mottu-fiap-557047' 
+  
 stages:
+# -----------------------------------------------------
+# ESTÁGIO DE CI (BUILD & TEST)
+# -----------------------------------------------------
 - stage: Build
   displayName: 'CI - Build, Test & Publish Artifact'
   jobs:
@@ -25,7 +21,7 @@ stages:
     displayName: 'Build, Test and Publish'
     pool:
       vmImage: 'ubuntu-latest'
-
+    
     steps:
     - task: JavaToolInstaller@0
       inputs:
@@ -43,18 +39,14 @@ stages:
         testResultsFiles: '**/surefire-reports/TEST-*.xml'
 
     - task: CopyFiles@2
-      displayName: 'Copy JAR to Artifact Staging'
-      inputs:
-        SourceFolder: '$(System.DefaultWorkingDirectory)/target'
-        Contents: $(mavenArtifactName)
-        TargetFolder: '$(Build.ArtifactStagingDirectory)'
-
-    - task: CopyFiles@2
-      displayName: 'Copy Dockerfile to Artifact Staging'
+      displayName: 'Copy JAR and Dockerfile to Artifact Staging'
       inputs:
         SourceFolder: '$(System.DefaultWorkingDirectory)'
-        Contents: $(dockerfile)
+        Contents: |
+          target/$(mavenArtifactName)
+          $(dockerfile)
         TargetFolder: '$(Build.ArtifactStagingDirectory)'
+        FlattenFolders: true
 
     - task: PublishBuildArtifacts@1
       displayName: 'Publish Artifact'
@@ -63,17 +55,20 @@ stages:
         ArtifactName: $(artifactName)
         publishLocation: 'Container'
 
+# -----------------------------------------------------
+# ESTÁGIO DE CD (DEPLOY)
+# -----------------------------------------------------
 - stage: Deploy
   displayName: 'CD - Deploy to Azure'
   dependsOn: Build
   condition: succeeded()
-
+  
   jobs:
   - job: DeployToACI
     displayName: 'Deploy to ACI'
     pool:
       vmImage: 'ubuntu-latest'
-
+      
     steps:
     - task: DownloadBuildArtifacts@1
       displayName: 'Download Artifact'
@@ -87,7 +82,7 @@ stages:
       displayName: 'Login to ACR'
       inputs:
         command: 'login'
-        containerRegistry: 'AcrConnection'
+        containerRegistry: 'AcrConnection' 
 
     - task: Docker@2
       displayName: 'Build Docker Image'
@@ -95,8 +90,8 @@ stages:
         command: 'build'
         repository: $(imageRepository)
         tag: '$(Build.BuildId)'
-        dockerfile: '$(System.ArtifactsDirectory)/$(artifactName)/Dockerfile'
-        buildContext: '$(System.ArtifactsDirectory)/$(artifactName)'
+        dockerfile: '$(System.ArtifactsDirectory)/Dockerfile'
+        buildContext: '$(System.ArtifactsDirectory)'
 
     - task: Docker@2
       displayName: 'Push Image to ACR'
@@ -115,6 +110,8 @@ stages:
         scriptType: 'pscore'
         scriptLocation: 'inlineScript'
         inlineScript: |
+          # Implantação idempotente do Banco de Dados
+          echo "Iniciando deploy do Banco de Dados PostgreSQL..."
           az container create `
             --resource-group $(resourceGroup) `
             --name $(postgresContainerName) `
@@ -127,22 +124,28 @@ stages:
             --dns-name-label $(dnsLabelDb) `
             --location $(location)
 
+          echo "Aguardando 60s para o banco iniciar..."
           Start-Sleep -Seconds 60
-
+          
+          # Obter IPs e Nomes
           $POSTGRES_IP = $(az container show --resource-group $(resourceGroup) --name $(postgresContainerName) --query ipAddress.ip --output tsv)
           echo "IP do DB: $POSTGRES_IP"
+          $ACR_LOGIN_SERVER = $(az acr show --name $(dockerRegistryName) --query loginServer -o tsv)
+          echo "ACR Login Server: $ACR_LOGIN_SERVER"
 
+          # Implantação da Aplicação Java
+          echo "Iniciando deploy da Aplicação Java..."
           az container create `
             --resource-group $(resourceGroup) `
             --name $(appContainerName) `
-            --image $(az acr show --name $(DOCKER_REGISTRY_NAME) --query loginServer -o tsv)/$(imageRepository):$(Build.BuildId) `
+            --image "$ACR_LOGIN_SERVER/$(imageRepository):$(Build.BuildId)" `
             --os-type Linux `
             --ports 8080 `
             --cpu 1 `
             --memory 1.5 `
-            --registry-login-server $(az acr show --name $(DOCKER_REGISTRY_NAME) --query loginServer -o tsv) `
-            --registry-username $(DOCKER_REGISTRY_USERNAME) `
-            --registry-password $(DOCKER_REGISTRY_PASSWORD) `
+            --registry-login-server $ACR_LOGIN_SERVER `
+            --registry-username $(dockerRegistryUsername) `
+            --registry-password $(dockerRegistryPassword) `
             --environment-variables "DB_URL=jdbc:postgresql://$POSTGRES_IP:5432/$(postgresDb)" "DB_USER=$(postgresUser)" "DB_PASSWORD=$(postgresPassword)" `
             --dns-name-label $(dnsLabelApp) `
             --location $(location)
