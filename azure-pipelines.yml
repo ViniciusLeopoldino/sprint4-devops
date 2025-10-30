@@ -46,7 +46,7 @@ stages:
     - task: CopyFiles@2
       displayName: 'Copy JAR and Dockerfile to Artifact Staging'
       inputs:
-        SourceFolder: '$(System.DefaultWorkingDirectory)/sprint4-devops'
+        SourceFolder: '$(System.DefaultWorkingDirectory)'
         Contents: |
           Dockerfile
           target/$(mavenArtifactName)
