@@ -11,10 +11,8 @@ variables:
   location: $(LOCATION)
   postgresContainerName: $(POSTGRES_CONTAINER_NAME)
   appContainerName: $(APP_CONTAINER_NAME)
-  dnsLabelApp: 'app-mottu-fiap'
-  dnsLabelDb: 'db-mottu-fiap'
-  dockerRegistryServiceConnection: $(DOCKER_REGISTRY_SERVICE_CONNECTION)
-  azureSubscriptionServiceConnection: $(AZURE_SERVICE_CONNECTION)
+  dnsLabelApp: 'app-mottu-fiap-557047'
+  dnsLabelDb: 'db-mottu-fiap-557047'
   postgresPassword: $(POSTGRES_PASSWORD)
   postgresUser: $(POSTGRES_USER)
   postgresDb: $(POSTGRES_DB)
@@ -89,7 +87,7 @@ stages:
       displayName: 'Login to ACR'
       inputs:
         command: 'login'
-        containerRegistry: $(dockerRegistryServiceConnection)
+        containerRegistry: 'AcrConnection'
 
     - task: Docker@2
       displayName: 'Build Docker Image'
@@ -105,7 +103,7 @@ stages:
       inputs:
         command: 'push'
         repository: $(imageRepository)
-        containerRegistry: $(dockerRegistryServiceConnection)
+        containerRegistry: 'AcrConnection'
         tags: |
           $(Build.BuildId)
           latest
@@ -113,7 +111,7 @@ stages:
     - task: AzureCLI@2
       displayName: 'Deploy to Azure (DB & App)'
       inputs:
-        azureSubscription: $(azureSubscriptionServiceConnection)
+        azureSubscription: 'AzureSubscriptionConnection'
         scriptType: 'pscore'
         scriptLocation: 'inlineScript'
         inlineScript: |
