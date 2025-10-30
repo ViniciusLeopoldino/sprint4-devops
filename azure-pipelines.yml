@@ -28,11 +28,25 @@ stages:
       vmImage: 'ubuntu-latest'
     
     steps:
-    - task: UseJavaVersion@0
-      displayName: 'Set Java Version to $(javaVersion)'
+    - task: Bash@3
+      displayName: 'Manually Set JAVA_HOME to 17'
       inputs:
-        versionSpec: $(javaVersion) 
-        architecture: 'x64'
+        targetType: 'inline'
+        script: |
+          echo "Ajustando manualmente o JAVA_HOME para a versão 17..."
+          
+          # Este é o caminho padrão para o JDK 17 fornecido pela Microsoft nos agentes Ubuntu
+          export JAVA_HOME="/usr/lib/jvm/ms-jdk-17-amd64"
+          
+          echo "Novo JAVA_HOME: $JAVA_HOME"
+          
+          # Define a variável JAVA_HOME para todas as tarefas seguintes neste Job
+          echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME"
+          
+          echo "Verificando a versão do Java..."
+          # Adiciona o Java 17 ao PATH deste script para verificação
+          export PATH=$JAVA_HOME/bin:$PATH
+          java -version
 
     - task: Maven@4
       displayName: 'Maven Package and Test'
