@@ -92,6 +92,10 @@ stages:
         dockerfile: '$(System.DefaultWorkingDirectory)/Dockerfile'
         buildContext: '$(System.DefaultWorkingDirectory)'
 
+    - script: |
+        docker tag $(imageRepository):$(Build.BuildId) $(imageRepository):latest
+      displayName: 'Tag image as latest'
+
     - task: Docker@2
       displayName: 'Push Image to ACR'
       inputs:
