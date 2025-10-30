@@ -43,20 +43,10 @@ stages:
         options: '-DskipTests'
         publishJUnitTestResults: false
 
-    - task: CopyFiles@2
-      displayName: 'Copy JAR and Dockerfile to Artifact Staging'
-      inputs:
-        SourceFolder: '$(System.DefaultWorkingDirectory)'
-        Contents: |
-          Dockerfile
-          target/$(mavenArtifactName)
-        TargetFolder: '$(Build.ArtifactStagingDirectory)'
-        FlattenFolders: false
-
     - task: PublishBuildArtifacts@1
       displayName: 'Publish Artifact'
       inputs:
-        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        PathtoPublish: 'target'
         ArtifactName: $(artifactName)
         publishLocation: 'Container'
 
@@ -72,26 +62,18 @@ stages:
       vmImage: 'ubuntu-latest'
       
     steps:
-    - task: DownloadBuildArtifacts@1
-      displayName: 'Download Artifact'
-      inputs:
-        buildType: 'current'
-        downloadType: 'single'
-        artifactName: $(artifactName)
-        downloadPath: '$(System.ArtifactsDirectory)'
-
     - task: Docker@2
       displayName: 'Login to ACR'
       inputs:
         command: 'login'
-        containerRegistry: 'AcrConnection' 
+        containerRegistry: 'AcrConnection'
 
     - task: Docker@2
       displayName: 'Build Docker Image'
       inputs:
         command: build
-        dockerfile: '$(System.ArtifactsDirectory)/drop/Dockerfile'
-        buildContext: '$(System.ArtifactsDirectory)/drop'
+        dockerfile: '$(System.DefaultWorkingDirectory)/sprint4-devops/Dockerfile'
+        buildContext: '$(System.DefaultWorkingDirectory)/sprint4-devops'
         tags: |
           $(Build.BuildId)
 
