@@ -61,26 +61,16 @@ stages:
         command: 'login'
         containerRegistry: 'AcrConnection'
 
-    # =================================================================
-    # CORREÇÃO DA PIPELINE (AJUSTE NO BUILD DO DOCKER)
-    # =================================================================
     - task: Docker@2
       displayName: 'Build Docker Image'
       inputs:
         command: build
         dockerfile: '$(Build.SourcesDirectory)/$(projectPath)Dockerfile'
         buildContext: '$(Build.SourcesDirectory)/$(projectPath)'
-        # === ADICIONADO ===
-        # Precisamos dar o nome do repositório aqui
         repository: $(imageRepository) 
-        # === AJUSTADO ===
-        # As tags criadas no build devem ser as mesmas do push
         tags: |
           $(Build.BuildId)
           latest
-    # =================================================================
-    # FIM DA CORREÇÃO
-    # =================================================================
 
     - task: Docker@2
       displayName: 'Push Image to ACR'
