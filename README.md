@@ -159,4 +159,6 @@ az group delete --name rg-mottu-fiap --yes --no-wait
 ## 8. Equipe
 
 * **Vinicius Leopoldino de Oliveira** - **RM: 557047**
-* **Pablo Lopes Doria de Andrade** - **RM:556834**
+* **Pablo Lopes Doria de Andrade** - **RM: 556834**
+
+
