@@ -11,7 +11,7 @@
 
 ## Vídeo de Apresentação
  
-Demonstração completa da solução, fluxo CI/CD e testes da aplicação: 
+Demonstração completa da solução, fluxo CI/CD e testes da aplicação: [Vídeo no YouTube](https://youtu.be/Mdl_R1sATzc)
 
 ---
 
