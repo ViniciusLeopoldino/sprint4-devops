@@ -34,7 +34,8 @@ Esta solução foi projetada para resolver problemas de controle de inventário 
 
 O fluxo da solução foi redesenhado para seguir as práticas modernas de CI/CD, onde o **Azure Pipelines é o orquestrador central** de todo o processo, eliminando a necessidade de deploy manual.
 
-+---------------+ (1. Push) +----------------+ | | ------------> | | | Desenvolvedor | | GitHub | | (VS Code/IDE) | | (Repositório) | +---------------+ +-------+--------+ | | (2. Trigger da Pipeline) V +-----------------------------------------------------------------+ | Azure DevOps Pipelines | | | | [CI - STAGE 1: BUILD] ----------------+----------------------> [CD - STAGE 2: DEPLOY] | | | | 3. Executa 'mvn package' | | 7. Provisiona PG (ACI) | - Compila o código Java | | 8. Provisiona App (ACI) | - Roda Testes (JUnit/Security) | | | 4. Publica Artefatos (JAR, Testes) | | | 5. Build da Imagem Docker | | | 6. Push da Imagem -------------------+| | | | V V +------------------------------------+--+-------------------------+ | | (6) (7, 8) V V +-----------------------------------------------------------------+ | Nuvem Azure (Grupo de Recursos) | | | | +-----------------+ (Pull Imagem) +-----------------------+ | | | Azure Container | <---------------- | App Java (ACI) | | | | Registry (ACR) | | (Container) | | | | (Imagem da App) | +----------+------------+ | | +-----------------+ | | | | (Conexão JDBC) | V | | +----------+------------+ | | | Banco PG (ACI) | | | | (Container) | | | +-----------------------+ | +-----------------------------------------------------------------+ ^ | | (9. Usuário Testa a API) | +---------+-----+ | | | Usuário Final | | (Postman) | +-------------+
+<img width="713" height="733" alt="{1F89B4DB-82AA-4483-998A-A5F1EAFF61F9}" src="https://github.com/user-attachments/assets/21848ddc-ba33-4f2c-a7a4-2349a8a99d76" />
+
 
 ## 4. Tecnologias Utilizadas
 
