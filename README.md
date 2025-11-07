@@ -1,178 +1,114 @@
-# Mottu Control - Projeto FIAP (Java, Docker & Azure)
+# Mottu Control - Projeto FIAP (Java, Azure DevOps, Docker & ACI)
 
 ![Java](https://img.shields.io/badge/Java-17-blue)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.x-brightgreen)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-blue.svg)
 ![Docker](https://img.shields.io/badge/Docker-blue.svg)
+![Azure DevOps](https://img.shields.io/badge/Azure%20DevOps-Pipelines-blue)
 ![Azure](https://img.shields.io/badge/Azure-ACI%20%26%20ACR-blue)
 
 ---
 
-## Vídeo de Apresentação 
-   
+## Vídeo de Apresentação
  
-Demonstração completa do aplicativo no YouTube: [Apresentação Mottu Control](https://youtu.be/YBeacDZA1FY)
+Demonstração completa da solução, fluxo CI/CD e testes da aplicação: [LINK DO SEU VÍDEO AQUI]
 
 ---
 
 ## 1. Descrição da Solução
 
-O **Mottu Control** é uma API RESTful desenvolvida em Java com o framework Spring Boot, projetada para gerenciar o cadastro de motocicletas da empresa Mottu. A solução permite a realização de um CRUD completo (Criação, Leitura, Atualização e Exclusão) sobre uma tabela de motos.
+O **Mottu Control** é uma API RESTful desenvolvida em Java 17 com Spring Boot 3, projetada para gerenciar o cadastro de motocicletas da empresa Mottu. A solução permite a realização de um CRUD completo (Criação, Leitura, Atualização e Exclusão) e é protegida por autenticação (Spring Security).
 
-Toda a infraestrutura da aplicação, incluindo o banco de dados PostgreSQL, é containerizada com Docker e implantada na nuvem da Microsoft Azure, utilizando o Azure Container Registry (ACR) para armazenamento de imagens e o Azure Container Instances (ACI) para a execução dos containers.
+A solução é totalmente gerenciada por práticas de DevOps, utilizando o **Azure DevOps Pipelines** para orquestrar um fluxo completo de CI/CD. Toda a infraestrutura, incluindo a API e o banco de dados PostgreSQL, é containerizada com Docker e implantada automaticamente na nuvem da Microsoft Azure, utilizando o Azure Container Registry (ACR) e o Azure Container Instances (ACI).
 
 ## 2. Benefícios para o Negócio
 
 Esta solução foi projetada para resolver problemas de controle de inventário manual e descentralizado, trazendo os seguintes benefícios:
 * **Centralização e Acuracidade dos Dados:** Garante que as informações da frota sejam consistentes, confiáveis e acessíveis a partir de um único ponto.
+* **Automação de CI/CD:** A pipeline de DevOps garante que novas funcionalidades e correções sejam testadas e implantadas de forma rápida, confiável e automática.
 * **Agilidade Operacional:** Permite que as equipes consultem, adicionem ou removam motocicletas do sistema de forma rápida e programática.
+* **Segurança:** Os endpoints da API são protegidos por autenticação, garantindo que apenas usuários autorizados possam gerenciar a frota.
 * **Escalabilidade:** Por ser baseada em nuvem e containers, a solução pode escalar facilmente para suportar o crescimento da frota da Mottu.
-* **Fundação para o Futuro:** Serve como a base tecnológica para o desenvolvimento de novas funcionalidades, como sistemas de aluguel, agendamento de manutenção e rastreamento.
 
-## 3. Arquitetura da Solução
+## 3. Arquitetura da Solução e Fluxo CI/CD
 
-O fluxo da solução segue as práticas modernas de DevOps e Cloud Computing:
+O fluxo da solução foi redesenhado para seguir as práticas modernas de CI/CD, onde o **Azure Pipelines é o orquestrador central** de todo o processo, eliminando a necessidade de deploy manual.
 
-```
-+---------------+      +----------------+      +------------------+
-|               |      |                |      |                  |
-|  Desenvolvedor|----->|     GitHub     |----->|      Azure       |
-|               |      | (Código Fonte) |      | (Nuvem/Cloud)    |
-+---------------+      +----------------+      +------------------+
-      |                                              |
-      | 1. Desenvolve o código e o Dockerfile          | 5. Executa os scripts de deploy (ACI)
-      | 2. Envia para o GitHub (push)                  |
-      |                                                V
-      |------------------------------------------------+
-      | 3. Clona o repo localmente                     |
-      | 4. Constrói a imagem e envia para o ACR        |
-      |    (docker build/push)                         |
-      +------------------------------------------------+
-
-      -------------------------- Nuvem Azure ---------------------------
-      |                                                                 |
-      |  +---------------------------+       +------------------------+ |
-      |  |  Azure Container Registry |       |   Grupo de Recursos    | |
-      |  |      (ACR)                |<------|                        | |
-      |  |  [Armazena imagem da App] |       | +--------------------+ | |
-      |  +---------------------------+       | | App Java (ACI)     | | |
-      |                                      | | [Container]        | | |
-      |                                      | +--------+-----------+ | |
-      |                                      |          |             | |
-      |                                      |          V             | |
-      |                                      | +--------+-----------+ | |
-      |                                      | | Banco PG (ACI)     | | |
-      |                                      | | [Container]        | | |
-      |                                      | +--------------------+ | |
-      |                                      +------------------------+ |
-      |                                                                 |
-      -------------------------------------------------------------------
-                                       ^
-                                       |
-                                +------+------+
-                                |             |
-                                |   Usuário   |
-                                |  (Testes)   |
-                                +-------------+
-```
++---------------+ (1. Push) +----------------+ | | ------------> | | | Desenvolvedor | | GitHub | | (VS Code/IDE) | | (Repositório) | +---------------+ +-------+--------+ | | (2. Trigger da Pipeline) V +-----------------------------------------------------------------+ | Azure DevOps Pipelines | | | | [CI - STAGE 1: BUILD] ----------------+----------------------> [CD - STAGE 2: DEPLOY] | | | | 3. Executa 'mvn package' | | 7. Provisiona PG (ACI) | - Compila o código Java | | 8. Provisiona App (ACI) | - Roda Testes (JUnit/Security) | | | 4. Publica Artefatos (JAR, Testes) | | | 5. Build da Imagem Docker | | | 6. Push da Imagem -------------------+| | | | V V +------------------------------------+--+-------------------------+ | | (6) (7, 8) V V +-----------------------------------------------------------------+ | Nuvem Azure (Grupo de Recursos) | | | | +-----------------+ (Pull Imagem) +-----------------------+ | | | Azure Container | <---------------- | App Java (ACI) | | | | Registry (ACR) | | (Container) | | | | (Imagem da App) | +----------+------------+ | | +-----------------+ | | | | (Conexão JDBC) | V | | +----------+------------+ | | | Banco PG (ACI) | | | | (Container) | | | +-----------------------+ | +-----------------------------------------------------------------+ ^ | | (9. Usuário Testa a API) | +---------+-----+ | | | Usuário Final | | (Postman) | +-------------+
 
 ## 4. Tecnologias Utilizadas
 
-* **Backend:** Java 17, Spring Boot 3, Spring Data JPA
-* **Banco de Dados:** PostgreSQL 15
-* **Build:** Apache Maven
-* **Containerização:** Docker
-* **Cloud:** Microsoft Azure (Azure CLI, ACR, ACI)
+* **Backend:** Java 17, Spring Boot 3, Spring Data JPA, Spring Security
+* **Banco de Dados:** PostgreSQL 15 (Containerizado)
+* **Build & Teste:** Apache Maven, JUnit
 * **Controle de Versão:** Git & GitHub
+* **Orquestração CI/CD:** Azure DevOps (Azure Pipelines)
+* **Containerização:** Docker
+* **Cloud (Nuvem):** Microsoft Azure
+    * **Registro de Imagem:** Azure Container Registry (ACR)
+    * **Hospedagem de Containers:** Azure Container Instances (ACI)
 
-## 5. Pré-requisitos
+## 5. O Processo de CI/CD (Automação)
 
-Para realizar o deploy desta solução, você precisará ter as seguintes ferramentas instaladas e configuradas em sua máquina local:
-* Git
-* JDK 17 ou superior
-* Docker Desktop (em execução)
-* Azure CLI (logado com `az login`)
+O deploy manual (descrito anteriormente) foi descontinuado e substituído por uma pipeline de CI/CD automatizada (`azure-pipelines.yml`), que executa as seguintes etapas:
 
-## 6. Guia de Deploy e Teste
+### Estágio 1: CI - Build & Docker (Integração Contínua)
 
-Siga os passos abaixo para implantar e testar a solução.
+Este estágio é disparado a cada `push` na branch principal do GitHub.
 
-### Passo 1: Clone o Repositório
-```powershell
-git clone https://github.com/ViniciusLeopoldino/sprint3-devops.git
-cd sprint3-devops
-```
+1.  **Build & Test (Manual Script):** O agente do Azure DevOps (Ubuntu) executa o comando `mvn package`, que:
+    * Compila todo o código Java.
+    * Executa os testes unitários e de integração (incluindo os testes de segurança do `MotoControllerTest`).
+2.  **Publish Test Results:** Publica os resultados dos testes (JUnit) na interface do Azure DevOps.
+3.  **Publish Artifacts:** Publica o arquivo `.jar` gerado como um artefato (`drop`) no Azure DevOps.
+4.  **Login to ACR:** Autentica no Azure Container Registry.
+5.  **Build Docker Image:** Constrói a imagem Docker (usando o `Dockerfile`) e aplica as tags (ID do Build e "latest").
+6.  **Push Image to ACR:** Envia a imagem Docker recém-construída para o ACR.
 
-### Passo 2: Execute o Script de Deploy
-O script a seguir automatiza a criação de toda a infraestrutura. Copie o bloco inteiro e execute no seu terminal.
+### Estágio 2: CD - Deploy to Azure (Entrega Contínua)
 
-```terminal
-# ===================================================================
-# ROTEIRO DE DEPLOY - PROJETO MOTTU CONTROL
-# ===================================================================
+Este estágio é disparado automaticamente após a conclusão bem-sucedida do Estágio 1.
 
-# ----- Bloco de Variáveis -----
-$env:RESOURCE_GROUP="rg-mottu-fiap"
-$env:LOCATION="brazilsouth"
-$env:ACR_NAME="acrmottucontrol557047" 
-$env:APP_CONTAINER_NAME="java-app-mottu"
-$env:POSTGRES_CONTAINER_NAME = "postgres-db-mottu"
-$env:POSTGRES_DB = "mottudb"
-$env:POSTGRES_USER = "mottuadmin"
-$env:POSTGRES_PASSWORD = "mottu280595"
+1.  **Deploy PostgreSQL & App (Azure CLI):**
+    * Um script `az container create` provisiona o container do **PostgreSQL** no ACI, usando as variáveis de ambiente seguras.
+    * O script aguarda 60 segundos para o banco de dados iniciar.
+    * Um segundo script `az container create` provisiona o container da **Aplicação Java (Mottu Control)**, injetando as credenciais do banco e do ACR. A aplicação automaticamente baixa a imagem correta do ACR.
 
-# ----- 1. Criar Recursos Base -----
-Write-Host "Criando Grupo de Recursos e Azure Container Registry..."
-az group create --name $env:RESOURCE_GROUP --location $env:LOCATION
-az acr create --resource-group $env:RESOURCE_GROUP --name $env:ACR_NAME --sku Basic --admin-enabled true
+## 6. Como Testar a API (Pós-Deploy)
 
-# ----- 2. Fazer Build e Push da Imagem da Aplicação -----
-Write-Host "Fazendo login, build e push da imagem Docker..."
-az acr login --name $env:ACR_NAME
-docker build -t "$($env:ACR_NAME).azurecr.io/mottu-control:v1" .
-docker push "$($env:ACR_NAME).azurecr.io/mottu-control:v1"
+Com a pipeline de CI/CD, a aplicação é implantada automaticamente. Para testar, siga os passos:
 
-# ----- 3. Criar o Container do PostgreSQL -----
-Write-Host "Criando o container do PostgreSQL..."
-az container create --resource-group $env:RESOURCE_GROUP --name $env:POSTGRES_CONTAINER_NAME --image postgres:15 --os-type Linux --ports 5432 --cpu 1 --memory 1.5 --environment-variables "POSTGRES_DB=$($env:POSTGRES_DB)" "POSTGRES_USER=$($env:POSTGRES_USER)" "POSTGRES_PASSWORD=$($env:POSTGRES_PASSWORD)" --dns-name-label postgres-mottu-$($env:ACR_NAME)
+### Passo 1: Obter o IP ou FQDN da Aplicação
+1.  Acesse o [Portal do Azure](https://portal.azure.com).
+2.  Navegue até o Grupo de Recursos (ex: `rg-mottu-fiap`).
+3.  Clique no recurso "Container instance" da sua aplicação (ex: `app-mottu-fiap-557047`).
+4.  Na tela "Properties" (Propriedades), copie o valor do **IP address** ou **FQDN**.
+    * A URL base da sua API será: `http://<SEU_IP_OU_FQDN>:8080/api/mos`
 
-# ----- 4. Aguardar e Obter o IP do Banco de Dados -----
-Write-Host "Aguardando 60 segundos para o PostgreSQL iniciar..."
-Start-Sleep -Seconds 60
-$POSTGRES_IP = $(az container show --resource-group $env:RESOURCE_GROUP --name $env:POSTGRES_CONTAINER_NAME --query ipAddress.ip --output tsv)
-Write-Host "IP do PostgreSQL obtido: $POSTGRES_IP"
+### Passo 2: Configurar a Autenticação (Basic Auth) no Postman
+Nossa API agora usa **Spring Security**. Todas as requisições (especialmente `POST`, `PUT`, `DELETE`) exigirão autenticação.
 
-# ----- 5. Criar o Container da Aplicação -----
-$DB_URL = "jdbc:postgresql://$($POSTGRES_IP):5432/$($env:POSTGRES_DB)"
-$ACR_PASSWORD = $(az acr credential show --name $env:ACR_NAME --query "passwords[0].value" --output tsv)
+Para facilitar os testes no Postman (e para seu vídeo de demonstração), recomendamos definir um usuário e senha estáticos.
 
-Write-Host "Criando o container da aplicação Java..."
-az container create --resource-group $env:RESOURCE_GROUP --name $env:APP_CONTAINER_NAME --image "$($env:ACR_NAME).azurecr.io/mottu-control:v1" --os-type Linux --ports 8080 --cpu 1 --memory 1.5 --registry-username $env:ACR_NAME --registry-password $ACR_PASSWORD --environment-variables "DB_URL=$($DB_URL)" "DB_USER=$($env:POSTGRES_USER)" "DB_PASSWORD=$($env:POSTGRES_PASSWORD)" --dns-name-label app-mottu-$($env:ACR_NAME)
+1.  **Adicione ao `application.properties` (e faça o commit/push):**
+    ```properties
+    # Configuração de Segurança Estática para Testes
+    spring.security.user.name=mottu
+    spring.security.user.password=mottu123
+    ```
+2.  Aguarde a pipeline executar o deploy novamente.
+3.  No Postman, em cada requisição, vá para a aba **"Authorization"**:
+    * **Type:** `Basic Auth`
+    * **Username:** `mottu`
+    * **Password:** `mottu123`
 
-# ----- 6. Mensagem de Conclusão -----
-Write-Host "------------------------------------------------------------"
-Write-Host "✅ Infraestrutura implantada com sucesso!"
-Write-Host "Obtenha os IPs da aplicação e banco de dados nos retornos acima."
-Write-Host "------------------------------------------------------------"
-```
-
-## 7. Acessando o Banco de Dados (PostgreSQL)
-
-Use uma ferramenta como o **DBeaver** ou pgAdmin para se conectar ao banco.
-* **Host/Servidor:** O IP obtido no Passo 2.
-* **Porta:** `5432`
-* **Banco de Dados:** `mottudb`
-* **Usuário:** `mottuadmin`
-* **Senha:** `mottu280595`
-
-## 8. Como Testar a API com o Postman
-
-Use a URL da API retornada no Passo 2 para montar as requisições no Postman.
+### Passo 3: Executar o CRUD no Postman
 
 ---
-### **CREATE (POST)** - Criar uma nova moto
+#### **CREATE (POST)** - Criar uma nova moto
 * **Método:** `POST`
 * **URL:** `http://<IP_DA_SUA_APP>:8080/api/motos`
+* **Authorization:** `Basic Auth (mottu/mottu123)`
 * **Corpo (Body):** `raw`, `JSON`
     ```json
     {
@@ -184,15 +120,17 @@ Use a URL da API retornada no Passo 2 para montar as requisições no Postman.
 * **Resultado Esperado:** Status `201 Created`.
 
 ---
-### **READ (GET)** - Listar todas as motos
+#### **READ (GET)** - Listar todas as motos
 * **Método:** `GET`
 * **URL:** `http://<IP_DA_SUA_APP>:8080/api/motos`
+* **Authorization:** `Basic Auth (mottu/mottu123)`
 * **Resultado Esperado:** Status `200 OK`.
 
 ---
-### **UPDATE (PUT)** - Atualizar uma moto
+#### **UPDATE (PUT)** - Atualizar uma moto
 * **Método:** `PUT`
 * **URL:** `http://<IP_DA_SUA_APP>:8080/api/motos/1` (substitua `1` por um ID existente)
+* **Authorization:** `Basic Auth (mottu/mottu123)`
 * **Corpo (Body):** `raw`, `JSON`
     ```json
     {
@@ -204,19 +142,20 @@ Use a URL da API retornada no Passo 2 para montar as requisições no Postman.
 * **Resultado Esperado:** Status `200 OK`.
 
 ---
-### **DELETE** - Remover uma moto
+#### **DELETE** - Remover uma moto
 * **Método:** `DELETE`
 * **URL:** `http://<IP_DA_SUA_APP>:8080/api/motos/1` (substitua `1` por um ID existente)
+* **Authorization:** `Basic Auth (mottu/mottu123)`
 * **Resultado Esperado:** Status `204 No Content`.
 
-## 9. Limpar os recursos da Azure
+## 7. Limpar os recursos da Azure
 
+Para excluir todos os recursos criados (ACR, ACIs) e parar a cobrança, execute o comando para excluir o grupo de recursos:
 ```terminal
-az group delete --name $env:RESOURCE_GROUP --yes --no-wait
+az group delete --name rg-mottu-fiap --yes --no-wait
 ```
 
-## 10. Equipe
+## 8. Equipe
 
 * **Vinicius Leopoldino de Oliveira** - RM 557047
 * **Pablo Lopes Doria de Andrade** - RM 556834
-
